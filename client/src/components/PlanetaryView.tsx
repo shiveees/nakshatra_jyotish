@@ -109,11 +109,11 @@ export function PlanetaryView({ location = DEFAULT_LOCATION }: PlanetaryViewProp
       time += 0.001;
 
       // Twinkle stars
-      const positions = starsGeometry.attributes.position.array;
+      const starPositions = starsGeometry.attributes.position.array;
       const colors = starsGeometry.attributes.color.array;
       for (let i = 0; i < starCount; i++) {
         const i3 = i * 3;
-        const twinkle = Math.sin(time + positions[i3] * 0.01) * 0.3 + 0.7;
+        const twinkle = Math.sin(time + starPositions[i3] * 0.01) * 0.3 + 0.7;
         colors[i3] *= twinkle;
         colors[i3 + 1] *= twinkle;
         colors[i3 + 2] *= twinkle;
@@ -121,14 +121,13 @@ export function PlanetaryView({ location = DEFAULT_LOCATION }: PlanetaryViewProp
       starsGeometry.attributes.color.needsUpdate = true;
 
       // Update planet positions based on current time and location
-      const positions = calculatePlanetaryPositions(location);
+      const planetPositions = calculatePlanetaryPositions(location);
       planetMeshes.forEach((mesh, index) => {
-        const position = positions[index];
-        const angle = (position.angle * Math.PI) / 180;
+        const { angle = 0 } = planetPositions[index] || {};
         const radius = 20 + (index * 2); // Stagger planets in different houses
 
-        mesh.position.x = Math.cos(angle) * radius;
-        mesh.position.y = Math.sin(angle) * radius;
+        mesh.position.x = Math.cos(angle * Math.PI / 180) * radius;
+        mesh.position.y = Math.sin(angle * Math.PI / 180) * radius;
         mesh.rotation.y += 0.01;
       });
 
