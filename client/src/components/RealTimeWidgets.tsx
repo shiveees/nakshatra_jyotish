@@ -3,6 +3,20 @@ import { Card } from "@/components/ui/card";
 import { useTranslation } from "react-i18next";
 import { calculatePlanetaryPositions, type Location, DEFAULT_LOCATION } from '@/lib/location';
 
+const RASHIS = ["मेष", "वृषभ", "मिथुन", "कर्क", "सिंह", "कन्या", "तुला", "वृश्चिक", "धनु", "मकर", "कुंभ", "मीन"];
+
+const PLANETS = [
+  { symbol: "☉", name: "सूर्य" },
+  { symbol: "☽", name: "चंद्र" },
+  { symbol: "☿", name: "बुध" },
+  { symbol: "♀", name: "शुक्र" },
+  { symbol: "♂", name: "मंगल" },
+  { symbol: "♃", name: "बृहस्पति" },
+  { symbol: "♄", name: "शनि" },
+  { symbol: "♅", name: "उरेनस" },
+  { symbol: "♆", name: "नेपच्यून" }
+];
+
 const NAKSHATRAS = [
   "अश्विनी", "भरणी", "कृत्तिका", "रोहिणी", "मृगशिरा", "आर्द्रा",
   "पुनर्वसु", "पुष्य", "आश्लेषा", "मघा", "पूर्व फाल्गुनी", "उत्तर फाल्गुनी",
@@ -40,77 +54,77 @@ export function RealTimeWidgets({ location = DEFAULT_LOCATION }: WidgetProps) {
     return () => clearInterval(timer);
   }, [location]);
 
-  // Format time in Hindi
-  const formatTimeInHindi = (date: Date) => {
-    return date.toLocaleTimeString('hi-IN', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: true
-    });
+  // Calculate current planetary positions
+  const getPlanetPosition = (angle: number) => {
+    const rashiIndex = Math.floor(angle / 30);
+    const houseIndex = Math.floor((angle + 180) / 30) % 12;
+    return {
+      rashi: RASHIS[rashiIndex],
+      house: houseIndex + 1
+    };
   };
 
-  // Calculate current nakshatra based on location and time
-  const nakshatra_index = Math.floor(
-    (((currentTime.getHours() * 60 + currentTime.getMinutes()) / 1440) * 27 + 
-    location.longitude / 360 * 27) % 27
-  );
-  const currentNakshatra = NAKSHATRAS[nakshatra_index];
+  // Calculate current nakshatra
+  const getCurrentNakshatra = () => {
+    const moonPosition = planetaryPositions[1]?.angle || 0;
+    const nakshatraIndex = Math.floor((moonPosition * 27) / 360);
+    const rashiIndex = Math.floor(moonPosition / 30);
+    return {
+      name: NAKSHATRAS[nakshatraIndex % 27],
+      rashi: RASHIS[rashiIndex % 12]
+    };
+  };
 
-  // Calculate current choghadiya based on location and time
-  const dayPeriod = (currentTime.getHours() + location.longitude / 15) % 24;
-  const periodIndex = Math.floor((dayPeriod % 8));
-  const currentChoghadiya = CHOGHADIYA[periodIndex];
+  // Calculate current choghadiya
+  const getCurrentChoghadiya = () => {
+    const hour = currentTime.getHours();
+    const isSunrise = hour >= 6 && hour < 18;
+    const periodLength = 12 / 8; // Length of each period in hours
+    const periodIndex = Math.floor(((hour - (isSunrise ? 6 : 18)) % 12) / periodLength);
+    return CHOGHADIYA[periodIndex % 8];
+  };
+
+  const nakshatra = getCurrentNakshatra();
+  const choghadiya = getCurrentChoghadiya();
 
   return (
-    <div className="fixed left-4 top-20 space-y-4 w-64 z-50">
-      <Card className="p-4 bg-[#FFF5E4]/80 backdrop-blur-sm border-[#6A9C89] 
-                      animate-glow relative overflow-hidden
-                      before:absolute before:inset-0 
-                      before:bg-gradient-to-r before:from-transparent 
-                      before:via-white/20 before:to-transparent
-                      before:animate-shimmer">
-        <h3 className="text-lg font-bold text-[#6A9C89] mb-2">वर्तमान स्थान</h3>
-        <p className="text-[#6A9C89] text-xl">
-          {location.name}
-        </p>
+    <div className="fixed right-4 top-20 space-y-2 w-48 z-50">
+      {/* Planetary Positions */}
+      <Card className="p-2 bg-[#FFF5E4]/80 backdrop-blur-sm border-[#6A9C89]">
+        <h3 className="text-sm font-bold text-[#6A9C89] mb-1">ग्रह स्थिति</h3>
+        <div className="space-y-1 text-xs">
+          {PLANETS.map((planet, index) => {
+            const position = getPlanetPosition(planetaryPositions[index]?.angle || 0);
+            return (
+              <div key={planet.name} className="flex items-center justify-between">
+                <span className="text-[#6A9C89]">{planet.symbol} {planet.name}</span>
+                <span className="text-[#FFA725]">
+                  {position.rashi} ({position.house})
+                </span>
+              </div>
+            );
+          })}
+        </div>
       </Card>
 
-      <Card className="p-4 bg-[#FFF5E4]/80 backdrop-blur-sm border-[#6A9C89]
-                      animate-glow relative overflow-hidden
-                      before:absolute before:inset-0 
-                      before:bg-gradient-to-r before:from-transparent 
-                      before:via-white/20 before:to-transparent
-                      before:animate-shimmer">
-        <h3 className="text-lg font-bold text-[#6A9C89] mb-2">वर्तमान समय</h3>
-        <p className="text-[#6A9C89] text-xl">
-          {formatTimeInHindi(currentTime)}
-        </p>
+      {/* Nakshatra Position */}
+      <Card className="p-2 bg-[#FFF5E4]/80 backdrop-blur-sm border-[#6A9C89]">
+        <h3 className="text-sm font-bold text-[#6A9C89] mb-1">नक्षत्र स्थिति</h3>
+        <div className="text-xs">
+          <div className="text-[#FFA725]">{nakshatra.name}</div>
+          <div className="text-[#6A9C89]">राशि: {nakshatra.rashi}</div>
+        </div>
       </Card>
 
-      <Card className="p-4 bg-[#FFF5E4]/80 backdrop-blur-sm border-[#6A9C89]
-                      animate-glow relative overflow-hidden
-                      before:absolute before:inset-0 
-                      before:bg-gradient-to-r before:from-transparent 
-                      before:via-white/20 before:to-transparent
-                      before:animate-shimmer">
-        <h3 className="text-lg font-bold text-[#6A9C89] mb-2">वर्तमान नक्षत्र</h3>
-        <p className="text-[#FFA725] text-xl">{currentNakshatra}</p>
-      </Card>
-
-      <Card className="p-4 bg-[#FFF5E4]/80 backdrop-blur-sm border-[#6A9C89]
-                      animate-glow relative overflow-hidden
-                      before:absolute before:inset-0 
-                      before:bg-gradient-to-r before:from-transparent 
-                      before:via-white/20 before:to-transparent
-                      before:animate-shimmer">
-        <h3 className="text-lg font-bold text-[#6A9C89] mb-2">चौघड़िया मुहूर्त</h3>
-        <p className="text-xl">
-          <span className="text-[#FFA725]">{currentChoghadiya.name}</span>
-          <span className={`ml-2 ${currentChoghadiya.type === "शुभ" ? "text-[#C1D8C3]" : "text-red-500"}`}>
-            ({currentChoghadiya.type})
+      {/* Choghadiya */}
+      <Card className="p-2 bg-[#FFF5E4]/80 backdrop-blur-sm border-[#6A9C89]">
+        <h3 className="text-sm font-bold text-[#6A9C89] mb-1">चौघड़िया</h3>
+        <div className="text-xs flex justify-between items-center">
+          <span className="text-[#FFA725]">{choghadiya.name}</span>
+          <span className={choghadiya.type === "शुभ" ? "text-[#C1D8C3]" : "text-red-500"}>
+            ({choghadiya.type})
           </span>
-        </p>
+        </div>
       </Card>
     </div>
   );
