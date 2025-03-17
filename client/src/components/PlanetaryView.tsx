@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { PLANETS, createPlanetMesh } from '@/lib/planets';
 
 export function PlanetaryView() {
@@ -20,22 +19,64 @@ export function PlanetaryView() {
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
     scene.add(ambientLight);
 
-    // Add point light (sun)
+    // Add point light
     const pointLight = new THREE.PointLight(0xffffff, 2);
     scene.add(pointLight);
 
-    // Create planets
-    const planetMeshes = Object.values(PLANETS).map(planet => {
+    // Create chart layout
+    const chartGeometry = new THREE.PlaneGeometry(60, 60);
+    const chartMaterial = new THREE.LineBasicMaterial({ color: 0x6b46c1, transparent: true, opacity: 0.3 });
+    const chart = new THREE.Mesh(chartGeometry, chartMaterial);
+    scene.add(chart);
+
+    // Create house divisions (12 segments)
+    const houseLines = new THREE.Group();
+    for (let i = 0; i < 4; i++) {
+      // Vertical lines
+      const vLine = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(-30 + i * 20, -30, 0),
+          new THREE.Vector3(-30 + i * 20, 30, 0)
+        ]),
+        new THREE.LineBasicMaterial({ color: 0x6b46c1 })
+      );
+      houseLines.add(vLine);
+
+      // Horizontal lines
+      const hLine = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(-30, -30 + i * 20, 0),
+          new THREE.Vector3(30, -30 + i * 20, 0)
+        ]),
+        new THREE.LineBasicMaterial({ color: 0x6b46c1 })
+      );
+      houseLines.add(hLine);
+    }
+    scene.add(houseLines);
+
+    // Position planets in houses
+    const planetMeshes = Object.values(PLANETS).map((planet, index) => {
       const mesh = createPlanetMesh(planet);
+
+      // Calculate house position (1-12)
+      const housePosition = index % 12;
+      const row = Math.floor(housePosition / 3);
+      const col = housePosition % 3;
+
+      // Position within house
+      mesh.position.x = -20 + col * 20;
+      mesh.position.y = 20 - row * 20;
+      mesh.position.z = 2; // Slightly in front of the chart
+
       scene.add(mesh);
-      return {
-        mesh,
-        orbitRadius: planet.orbitRadius,
-        orbitSpeed: 1 / planet.orbitRadius // Faster for closer planets
-      };
+      return mesh;
     });
 
-    // Add stars
+    // Position camera
+    camera.position.z = 80;
+    camera.lookAt(0, 0, 0);
+
+    // Add stars in background
     const starsGeometry = new THREE.BufferGeometry();
     const starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.1 });
     const starsVertices = [];
@@ -43,7 +84,7 @@ export function PlanetaryView() {
     for (let i = 0; i < 2000; i++) {
       const x = THREE.MathUtils.randFloatSpread(2000);
       const y = THREE.MathUtils.randFloatSpread(2000);
-      const z = THREE.MathUtils.randFloatSpread(2000);
+      const z = THREE.MathUtils.randFloatSpread(-1000); // Only behind the chart
       starsVertices.push(x, y, z);
     }
 
@@ -51,39 +92,22 @@ export function PlanetaryView() {
     const stars = new THREE.Points(starsGeometry, starsMaterial);
     scene.add(stars);
 
-    // Position camera
-    camera.position.z = 50;
-    camera.position.y = 30;
-    camera.lookAt(0, 0, 0);
-
-    // Add controls
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
-    controls.enableZoom = true;
-    controls.autoRotate = true;
-    controls.autoRotateSpeed = 0.5;
-
     // Animation loop
-    let lastTime = 0;
-    function animate(currentTime: number) {
+    function animate() {
       requestAnimationFrame(animate);
 
-      const deltaTime = (currentTime - lastTime) / 1000;
-      lastTime = currentTime;
-
-      // Update planet positions
-      planetMeshes.forEach(({ mesh, orbitRadius, orbitSpeed }) => {
-        const angle = (currentTime * orbitSpeed * 0.001);
-        mesh.position.x = Math.cos(angle) * orbitRadius;
-        mesh.position.z = Math.sin(angle) * orbitRadius;
-        mesh.rotation.y += deltaTime * 0.5;
+      // Rotate planets on their own axis
+      planetMeshes.forEach(mesh => {
+        mesh.rotation.y += 0.01;
       });
 
-      controls.update();
+      // Subtle chart movement
+      chart.rotation.z += 0.001;
+      houseLines.rotation.z += 0.001;
+
       renderer.render(scene, camera);
     }
-    animate(0);
+    animate();
 
     // Handle resize
     function handleResize() {
