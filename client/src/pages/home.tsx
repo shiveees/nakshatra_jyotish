@@ -7,25 +7,21 @@ export default function Home() {
   const { t } = useTranslation();
 
   return (
-    <div className="min-h-screen bg-background text-foreground bg-[url('https://images.unsplash.com/photo-1464802686167-b939a6910659')] bg-cover bg-fixed">
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-4xl md:text-6xl font-bold text-center mb-2">
+    <div className="min-h-screen bg-background text-foreground overflow-hidden relative">
+      <PlanetaryView />
+
+      <div className="container mx-auto px-4 py-8 relative">
+        <h1 className="text-4xl md:text-6xl font-bold text-center mb-2 text-primary">
           {t('common.title')}
         </h1>
-        <p className="text-xl text-center mb-8 text-muted-foreground">
+        <p className="text-xl text-center mb-8 text-primary/80">
           {t('common.subtitle')}
         </p>
 
-        <div className="grid md:grid-cols-2 gap-8">
-          <Card className="backdrop-blur-lg bg-background/80">
+        <div className="max-w-2xl mx-auto">
+          <Card className="backdrop-blur-lg bg-background/30 border border-primary/20">
             <CardContent className="p-6">
               <BirthChartForm onSubmit={console.log} />
-            </CardContent>
-          </Card>
-
-          <Card className="backdrop-blur-lg bg-background/80">
-            <CardContent className="p-6">
-              <PlanetaryView />
             </CardContent>
           </Card>
         </div>

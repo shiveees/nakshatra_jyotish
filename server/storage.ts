@@ -1,29 +1,28 @@
-import { type BirthChart, type InsertBirthChart } from "@shared/schema";
+import { birthCharts, type BirthChart, type InsertBirthChart } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 
 export interface IStorage {
   createBirthChart(chart: InsertBirthChart): Promise<BirthChart>;
   getBirthChart(id: number): Promise<BirthChart | undefined>;
 }
 
-export class MemStorage implements IStorage {
-  private birthCharts: Map<number, BirthChart>;
-  private currentId: number;
-
-  constructor() {
-    this.birthCharts = new Map();
-    this.currentId = 1;
-  }
-
+export class DatabaseStorage implements IStorage {
   async createBirthChart(chart: InsertBirthChart): Promise<BirthChart> {
-    const id = this.currentId++;
-    const newChart = { ...chart, id };
-    this.birthCharts.set(id, newChart);
+    const [newChart] = await db
+      .insert(birthCharts)
+      .values(chart)
+      .returning();
     return newChart;
   }
 
   async getBirthChart(id: number): Promise<BirthChart | undefined> {
-    return this.birthCharts.get(id);
+    const [chart] = await db
+      .select()
+      .from(birthCharts)
+      .where(eq(birthCharts.id, id));
+    return chart;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
