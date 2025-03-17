@@ -8,6 +8,18 @@
   }
 
   body {
-    @apply font-sans antialiased bg-background text-foreground;
+    @apply font-sans antialiased bg-[#FFF5E4] text-[#6A9C89];
   }
+}
+
+.primary-gradient {
+  background: linear-gradient(135deg, #FFA725 0%, #C1D8C3 100%);
+}
+
+.custom-input {
+  @apply bg-[#FFF5E4] border-[#6A9C89] text-[#6A9C89];
+}
+
+.custom-button {
+  @apply bg-[#FFA725] hover:bg-[#C1D8C3] text-white transition-all duration-300;
 }
