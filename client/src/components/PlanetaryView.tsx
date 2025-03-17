@@ -1,8 +1,13 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { PLANETS, createPlanetMesh } from '@/lib/planets';
+import { type Location, DEFAULT_LOCATION, calculatePlanetaryPositions } from '@/lib/location';
 
-export function PlanetaryView() {
+interface PlanetaryViewProps {
+  location?: Location;
+}
+
+export function PlanetaryView({ location = DEFAULT_LOCATION }: PlanetaryViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -11,7 +16,7 @@ export function PlanetaryView() {
     // Setup
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ alpha: true });
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
     renderer.setSize(containerRef.current.clientWidth, containerRef.current.clientHeight);
     containerRef.current.appendChild(renderer.domElement);
 
@@ -25,49 +30,70 @@ export function PlanetaryView() {
 
     // Create chart layout
     const chartGeometry = new THREE.PlaneGeometry(60, 60);
-    const chartMaterial = new THREE.LineBasicMaterial({ color: 0x6b46c1, transparent: true, opacity: 0.3 });
+    const chartMaterial = new THREE.LineBasicMaterial({ 
+      color: 0x6A9C89,
+      transparent: true,
+      opacity: 0.3
+    });
     const chart = new THREE.Mesh(chartGeometry, chartMaterial);
     scene.add(chart);
 
     // Create house divisions (12 segments)
     const houseLines = new THREE.Group();
-    for (let i = 0; i < 4; i++) {
-      // Vertical lines
-      const vLine = new THREE.Line(
+    for (let i = 0; i < 12; i++) {
+      const angle = (i * Math.PI * 2) / 12;
+      const line = new THREE.Line(
         new THREE.BufferGeometry().setFromPoints([
-          new THREE.Vector3(-30 + i * 20, -30, 0),
-          new THREE.Vector3(-30 + i * 20, 30, 0)
+          new THREE.Vector3(0, 0, 0),
+          new THREE.Vector3(
+            Math.cos(angle) * 30,
+            Math.sin(angle) * 30,
+            0
+          )
         ]),
-        new THREE.LineBasicMaterial({ color: 0x6b46c1 })
+        new THREE.LineBasicMaterial({ 
+          color: 0x6A9C89,
+          transparent: true,
+          opacity: 0.5
+        })
       );
-      houseLines.add(vLine);
-
-      // Horizontal lines
-      const hLine = new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints([
-          new THREE.Vector3(-30, -30 + i * 20, 0),
-          new THREE.Vector3(30, -30 + i * 20, 0)
-        ]),
-        new THREE.LineBasicMaterial({ color: 0x6b46c1 })
-      );
-      houseLines.add(hLine);
+      houseLines.add(line);
     }
     scene.add(houseLines);
 
-    // Position planets in houses
-    const planetMeshes = Object.values(PLANETS).map((planet, index) => {
+    // Add stars with different sizes and colors
+    const starsGeometry = new THREE.BufferGeometry();
+    const starsMaterial = new THREE.PointsMaterial({ 
+      size: 0.5,
+      vertexColors: true,
+      transparent: true,
+      blending: THREE.AdditiveBlending
+    });
+
+    const starsVertices = [];
+    const starsColors = [];
+    const starCount = 3000;
+
+    for (let i = 0; i < starCount; i++) {
+      const x = THREE.MathUtils.randFloatSpread(2000);
+      const y = THREE.MathUtils.randFloatSpread(2000);
+      const z = THREE.MathUtils.randFloatSpread(-1000); // Only behind the chart
+      starsVertices.push(x, y, z);
+
+      // Random star colors (white to gold)
+      const color = new THREE.Color();
+      color.setHSL(0.12, Math.random() * 0.3, 0.75 + Math.random() * 0.25);
+      starsColors.push(color.r, color.g, color.b);
+    }
+
+    starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starsVertices, 3));
+    starsGeometry.setAttribute('color', new THREE.Float32BufferAttribute(starsColors, 3));
+    const stars = new THREE.Points(starsGeometry, starsMaterial);
+    scene.add(stars);
+
+    // Position planets based on location
+    const planetMeshes = Object.entries(PLANETS).map(([key, planet], index) => {
       const mesh = createPlanetMesh(planet);
-
-      // Calculate house position (1-12)
-      const housePosition = index % 12;
-      const row = Math.floor(housePosition / 3);
-      const col = housePosition % 3;
-
-      // Position within house
-      mesh.position.x = -20 + col * 20;
-      mesh.position.y = 20 - row * 20;
-      mesh.position.z = 2; // Slightly in front of the chart
-
       scene.add(mesh);
       return mesh;
     });
@@ -76,34 +102,39 @@ export function PlanetaryView() {
     camera.position.z = 80;
     camera.lookAt(0, 0, 0);
 
-    // Add stars in background
-    const starsGeometry = new THREE.BufferGeometry();
-    const starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.1 });
-    const starsVertices = [];
-
-    for (let i = 0; i < 2000; i++) {
-      const x = THREE.MathUtils.randFloatSpread(2000);
-      const y = THREE.MathUtils.randFloatSpread(2000);
-      const z = THREE.MathUtils.randFloatSpread(-1000); // Only behind the chart
-      starsVertices.push(x, y, z);
-    }
-
-    starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starsVertices, 3));
-    const stars = new THREE.Points(starsGeometry, starsMaterial);
-    scene.add(stars);
-
     // Animation loop
+    let time = 0;
     function animate() {
       requestAnimationFrame(animate);
+      time += 0.001;
 
-      // Rotate planets on their own axis
-      planetMeshes.forEach(mesh => {
+      // Twinkle stars
+      const positions = starsGeometry.attributes.position.array;
+      const colors = starsGeometry.attributes.color.array;
+      for (let i = 0; i < starCount; i++) {
+        const i3 = i * 3;
+        const twinkle = Math.sin(time + positions[i3] * 0.01) * 0.3 + 0.7;
+        colors[i3] *= twinkle;
+        colors[i3 + 1] *= twinkle;
+        colors[i3 + 2] *= twinkle;
+      }
+      starsGeometry.attributes.color.needsUpdate = true;
+
+      // Update planet positions based on current time and location
+      const positions = calculatePlanetaryPositions(location);
+      planetMeshes.forEach((mesh, index) => {
+        const position = positions[index];
+        const angle = (position.angle * Math.PI) / 180;
+        const radius = 20 + (index * 2); // Stagger planets in different houses
+
+        mesh.position.x = Math.cos(angle) * radius;
+        mesh.position.y = Math.sin(angle) * radius;
         mesh.rotation.y += 0.01;
       });
 
       // Subtle chart movement
-      chart.rotation.z += 0.001;
-      houseLines.rotation.z += 0.001;
+      chart.rotation.z += 0.0005;
+      houseLines.rotation.z += 0.0005;
 
       renderer.render(scene, camera);
     }
@@ -124,7 +155,7 @@ export function PlanetaryView() {
       window.removeEventListener('resize', handleResize);
       containerRef.current?.removeChild(renderer.domElement);
     };
-  }, []);
+  }, [location]);
 
   return <div ref={containerRef} className="absolute inset-0 -z-10" />;
 }

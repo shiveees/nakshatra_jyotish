@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Card } from "@/components/ui/card";
 import { useTranslation } from "react-i18next";
+import { calculatePlanetaryPositions, type Location, DEFAULT_LOCATION } from '@/lib/location';
 
 const NAKSHATRAS = [
   "अश्विनी", "भरणी", "कृत्तिका", "रोहिणी", "मृगशिरा", "आर्द्रा",
@@ -21,16 +22,23 @@ const CHOGHADIYA = [
   { name: "मृत्यु", type: "अशुभ" }
 ];
 
-export function RealTimeWidgets() {
+interface WidgetProps {
+  location?: Location;
+}
+
+export function RealTimeWidgets({ location = DEFAULT_LOCATION }: WidgetProps) {
   const { t } = useTranslation();
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [planetaryPositions, setPlanetaryPositions] = useState(calculatePlanetaryPositions(location));
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setCurrentTime(new Date());
+      const now = new Date();
+      setCurrentTime(now);
+      setPlanetaryPositions(calculatePlanetaryPositions(location, now));
     }, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [location]);
 
   // Format time in Hindi
   const formatTimeInHindi = (date: Date) => {
@@ -42,28 +50,60 @@ export function RealTimeWidgets() {
     });
   };
 
-  // Calculate current nakshatra (simplified version)
-  const currentNakshatra = NAKSHATRAS[currentTime.getHours() % NAKSHATRAS.length];
+  // Calculate current nakshatra based on location and time
+  const nakshatra_index = Math.floor(
+    (((currentTime.getHours() * 60 + currentTime.getMinutes()) / 1440) * 27 + 
+    location.longitude / 360 * 27) % 27
+  );
+  const currentNakshatra = NAKSHATRAS[nakshatra_index];
 
-  // Calculate current choghadiya (simplified version)
-  const currentPeriod = Math.floor((currentTime.getHours() % 24) / 3);
-  const currentChoghadiya = CHOGHADIYA[currentPeriod];
+  // Calculate current choghadiya based on location and time
+  const dayPeriod = (currentTime.getHours() + location.longitude / 15) % 24;
+  const periodIndex = Math.floor((dayPeriod % 8));
+  const currentChoghadiya = CHOGHADIYA[periodIndex];
 
   return (
-    <div className="fixed left-4 top-20 space-y-4 w-64">
-      <Card className="p-4 bg-[#FFF5E4]/80 backdrop-blur-sm border-[#6A9C89]">
+    <div className="fixed left-4 top-20 space-y-4 w-64 z-50">
+      <Card className="p-4 bg-[#FFF5E4]/80 backdrop-blur-sm border-[#6A9C89] 
+                      animate-glow relative overflow-hidden
+                      before:absolute before:inset-0 
+                      before:bg-gradient-to-r before:from-transparent 
+                      before:via-white/20 before:to-transparent
+                      before:animate-shimmer">
+        <h3 className="text-lg font-bold text-[#6A9C89] mb-2">वर्तमान स्थान</h3>
+        <p className="text-[#6A9C89] text-xl">
+          {location.name}
+        </p>
+      </Card>
+
+      <Card className="p-4 bg-[#FFF5E4]/80 backdrop-blur-sm border-[#6A9C89]
+                      animate-glow relative overflow-hidden
+                      before:absolute before:inset-0 
+                      before:bg-gradient-to-r before:from-transparent 
+                      before:via-white/20 before:to-transparent
+                      before:animate-shimmer">
         <h3 className="text-lg font-bold text-[#6A9C89] mb-2">वर्तमान समय</h3>
         <p className="text-[#6A9C89] text-xl">
           {formatTimeInHindi(currentTime)}
         </p>
       </Card>
 
-      <Card className="p-4 bg-[#FFF5E4]/80 backdrop-blur-sm border-[#6A9C89]">
+      <Card className="p-4 bg-[#FFF5E4]/80 backdrop-blur-sm border-[#6A9C89]
+                      animate-glow relative overflow-hidden
+                      before:absolute before:inset-0 
+                      before:bg-gradient-to-r before:from-transparent 
+                      before:via-white/20 before:to-transparent
+                      before:animate-shimmer">
         <h3 className="text-lg font-bold text-[#6A9C89] mb-2">वर्तमान नक्षत्र</h3>
         <p className="text-[#FFA725] text-xl">{currentNakshatra}</p>
       </Card>
 
-      <Card className="p-4 bg-[#FFF5E4]/80 backdrop-blur-sm border-[#6A9C89]">
+      <Card className="p-4 bg-[#FFF5E4]/80 backdrop-blur-sm border-[#6A9C89]
+                      animate-glow relative overflow-hidden
+                      before:absolute before:inset-0 
+                      before:bg-gradient-to-r before:from-transparent 
+                      before:via-white/20 before:to-transparent
+                      before:animate-shimmer">
         <h3 className="text-lg font-bold text-[#6A9C89] mb-2">चौघड़िया मुहूर्त</h3>
         <p className="text-xl">
           <span className="text-[#FFA725]">{currentChoghadiya.name}</span>
